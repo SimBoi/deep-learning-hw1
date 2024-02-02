@@ -25,12 +25,36 @@ class FirstLastSampler(Sampler):
         # If the length of the data source is N, you should return indices in a
         # first-last ordering, i.e. [0, N-1, 1, N-2, ...].
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        return [(i+1)%2 * (i//2) + i%2 * (len(self.data_source) - (i//2) - 1) for i in range(len(self.data_source))].__iter__()
         # ========================
 
     def __len__(self):
         return len(self.data_source)
 
+class FirstLastSampler(Sampler):
+    """
+    A sampler that returns elements in a first-last order.
+    """
+
+    def __init__(self, data_source: Sized):
+        """
+        :param data_source: Source of data, can be anything that has a len(),
+        since we only care about its number of elements.
+        """
+        super().__init__(data_source)
+        self.data_source = data_source
+
+    def __iter__(self) -> Iterator[int]:
+        # TODO:
+        # Implement the logic required for this sampler.
+        # If the length of the data source is N, you should return indices in a
+        # first-last ordering, i.e. [0, N-1, 1, N-2, ...].
+        # ====== YOUR CODE: ======
+        return [(i+1)%2 * (i//2) + i%2 * (len(self.data_source) - (i//2) - 1) for i in range(len(self.data_source))].__iter__()
+        # ========================
+
+    def __len__(self):
+        return len(self.data_source)
 
 def create_train_validation_loaders(
     dataset: Dataset, validation_ratio, batch_size=100, num_workers=2
@@ -58,7 +82,12 @@ def create_train_validation_loaders(
     #  Hint: you can specify a Sampler class for the `DataLoader` instance
     #  you create.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    validation_size = math.floor(len(dataset) * validation_ratio)
+    random_permutation = np.random.permutation(len(dataset))
+    validation_sampler = torch.utils.data.SubsetRandomSampler(random_permutation[:validation_size])
+    train_sampler = torch.utils.data.SubsetRandomSampler(random_permutation[validation_size:])
+    dl_valid = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, sampler=validation_sampler)
+    dl_train = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, sampler=train_sampler)
     # ========================
 
     return dl_train, dl_valid
