@@ -52,13 +52,13 @@ class SVMHingeLoss(ClassifierLoss):
 
         # ====== YOUR CODE: ======
         N = x.shape[0]
-        M = x_scores - torch.diagonal(x_scores[0:N, y]).view(-1, 1) + self.delta  # M[i, j] = x_scores[i, j] - x_scores[i, y[i]] + delta
+        M = x_scores - x_scores[torch.arange(N), y].view(-1, 1) + self.delta  # M[i, j] = x_scores[i, j] - x_scores[i, y[i]] + delta
         loss = torch.sum(torch.max(torch.zeros_like(M), M)) / N - self.delta
         # ========================
 
         # TODO: Save what you need for gradient calculation in self.grad_ctx
         # ====== YOUR CODE: ======
-        self.grad_ctx = {'M': M, 'x': x}
+        self.grad_ctx = {'M': M, 'x': x, 'y': y}
         # ========================
 
         return loss
@@ -75,11 +75,17 @@ class SVMHingeLoss(ClassifierLoss):
         #  it create a matrix G such that X^T * G is the gradient.
 
         # ====== YOUR CODE: ======
-        x = self.grad_ctx['x']
+        x = self.grad_ctx['x'].clone()
+        y = self.grad_ctx['y'].clone()
         N = x.shape[0]
-        M = self.grad_ctx['M']
-        G = torch.where(M > 0, torch.ones_like(M) / N, torch.zeros_like(M))
-        grad = x.transpose(0, 1) @ G
+        G = self.grad_ctx['M'].clone()
+
+        G[torch.arange(N), y] = torch.zeros(N)
+        G = torch.where(G > 0, torch.ones_like(G), torch.zeros_like(G))
+        G[torch.arange(N), y] -= torch.sum(G, dim=1)
+        G = G / N
+
+        grad = x.t() @ G
         # ========================
 
         return grad

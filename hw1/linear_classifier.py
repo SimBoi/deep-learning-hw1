@@ -100,7 +100,23 @@ class LinearClassifier(object):
             #     using the weight_decay parameter.
 
             # ====== YOUR CODE: ======
-            raise NotImplementedError()
+            for batch_samples, batch_labels in dl_train:
+                y_pred, class_scores = self.predict(batch_samples)
+                total_correct += self.evaluate_accuracy(batch_labels, y_pred)
+                average_loss += loss_fn.loss(batch_samples, batch_labels, class_scores, y_pred) + weight_decay * torch.sum(self.weights ** 2)
+                self.weights.data -= learn_rate * loss_fn.grad()
+            train_res.accuracy.append(total_correct / len(dl_train))
+            train_res.loss.append(average_loss / len(dl_train))
+
+            total_correct = 0
+            average_loss = 0
+            for batch_samples, batch_labels in dl_valid:
+                y_pred, class_scores = self.predict(batch_samples)
+                total_correct += self.evaluate_accuracy(batch_labels, y_pred)
+                average_loss += loss_fn.loss(batch_samples, batch_labels, class_scores, y_pred) + weight_decay * torch.sum(self.weights ** 2)
+            valid_res.accuracy.append(total_correct / len(dl_valid))
+            valid_res.loss.append(average_loss / len(dl_valid))
+
             # ========================
             print(".", end="")
 
@@ -121,7 +137,11 @@ class LinearClassifier(object):
         #  The output shape should be (n_classes, C, H, W).
 
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        if has_bias:
+            w_images = self.weights[1:]
+        else:
+            w_images = self.weights
+        w_images = w_images.reshape(-1, *img_shape)
         # ========================
 
         return w_images
@@ -134,7 +154,9 @@ def hyperparams():
     #  Manually tune the hyperparameters to get the training accuracy test
     #  to pass.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    hp['weight_std'] = 0.05
+    hp['learn_rate'] = 0.05
+    hp['weight_decay'] = 0.0005
     # ========================
 
     return hp
