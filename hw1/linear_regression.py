@@ -32,7 +32,7 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
 
         y_pred = None
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        y_pred = np.dot(X, self.weights_)
         # ========================
 
         return y_pred
@@ -51,7 +51,13 @@ class LinearRegressor(BaseEstimator, RegressorMixin):
 
         w_opt = None
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        xt = np.transpose(X)
+        xtx = np.dot(xt, X)
+        features_num = X.shape[1]
+        eye = np.eye(features_num)
+        eye[0,0] = 0
+        N = X.shape[0]
+        w_opt = np.dot(np.linalg.inv(xtx + (N)*(self.reg_lambda)*eye), np.dot(xt, y))
         # ========================
 
         self.weights_ = w_opt
@@ -77,7 +83,10 @@ def fit_predict_dataframe(
     """
     # TODO: Implement according to the docstring description.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    if not feature_names:
+        feature_names = list(df.columns)
+        feature_names.remove(target_name)
+    y_pred = model.fit_predict(df[feature_names].to_numpy(), df[target_name].to_numpy())
     # ========================
     return y_pred
 
@@ -100,7 +109,7 @@ class BiasTrickTransformer(BaseEstimator, TransformerMixin):
 
         xb = None
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        xb = np.hstack((np.ones((X.shape[0],1)), X))
         # ========================
 
         return xb
@@ -117,7 +126,7 @@ class BostonFeaturesTransformer(BaseEstimator, TransformerMixin):
         # TODO: Your custom initialization, if needed
         # Add any hyperparameters you need and save them as above
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        #raise NotImplementedError()
         # ========================
 
     def fit(self, X, y=None):
@@ -139,7 +148,7 @@ class BostonFeaturesTransformer(BaseEstimator, TransformerMixin):
 
         X_transformed = None
         # ====== YOUR CODE: ======
-        raise NotImplementedError()
+        X_transformed = PolynomialFeatures(self.degree).fit_transform(X)
         # ========================
 
         return X_transformed
@@ -163,7 +172,9 @@ def top_correlated_features(df: DataFrame, target_feature, n=5):
     # TODO: Calculate correlations with target and sort features by it
 
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    corr_matrix = df.corr(method='pearson')
+    features_vec = corr_matrix[target_feature][:-1].apply(abs).sort_values(ascending=False)[:n]
+    return (features_vec.index.tolist(), list(features_vec.values))
     # ========================
 
     return top_n_features, top_n_corr
@@ -179,7 +190,7 @@ def mse_score(y: np.ndarray, y_pred: np.ndarray):
 
     # TODO: Implement MSE using numpy.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    mse = np.sum((y - y_pred) ** 2) / float(y.shape[0])
     # ========================
     return mse
 
@@ -194,7 +205,7 @@ def r2_score(y: np.ndarray, y_pred: np.ndarray):
 
     # TODO: Implement R^2 using numpy.
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    r2 = 1 - (np.sum((y - y_pred) ** 2) / np.sum((y - np.mean(y)) ** 2))
     # ========================
     return r2
 
@@ -227,7 +238,24 @@ def cv_best_hyperparams(
     #  - You can use MSE or R^2 as a score.
 
     # ====== YOUR CODE: ======
-    raise NotImplementedError()
+    from sklearn.model_selection import KFold
+    kf = KFold(n_splits=k_folds)
+    best_params = model.get_params()
+    max_score = None
+    for cur_lambda, cur_degree in [(x,y) for x in lambda_range for y in degree_range]:
+        model.set_params(**{'bostonfeaturestransformer__degree': cur_degree, 'linearregressor__reg_lambda': cur_lambda})
+        total_score = 0
+        BFT = BostonFeaturesTransformer(degree=cur_degree)
+        LR = LinearRegressor(reg_lambda=cur_lambda)
+        for train_index, test_index in kf.split(X):
+            X_train_transformed = BFT.transform(X[train_index])
+            LR.fit(X_train_transformed, y[train_index])
+            X_test_transformed = BFT.transform(X[test_index])
+            y_pred = LR.predict(X_test_transformed)
+            total_score += r2_score(y=y_pred, y_pred=y[test_index])
+        if max_score == None or max_score < total_score:
+            max_score = total_score
+            best_params = model.get_params()
     # ========================
 
     return best_params
